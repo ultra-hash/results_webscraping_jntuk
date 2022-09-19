@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import requests, os.path, time
+import concurrent.futures
 
 
 def input_data(hall_ticket, course, reg, start_year, end_year):
@@ -28,7 +29,9 @@ def input_data(hall_ticket, course, reg, start_year, end_year):
     return open_links(course_and_link, hall_ticket, reg)
 
 
-def open_link(url, title, hall_ticket, reg):
+# def open_link(url, title, hall_ticket, reg):
+def open_link(tup):
+    url, title, hall_ticket, reg = tup
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:95.0) Gecko/20100101 Firefox/95.0"
     }
@@ -55,23 +58,6 @@ def open_link(url, title, hall_ticket, reg):
     else:
         open_link(url, title, hall_ticket, reg)
 
-
-def open_links(course_and_link, hall_ticket, reg):
-    n = len(course_and_link)
-    count = 0
-    for title, url in course_and_link.items():
-        sample = time.time()
-        open_link(url, title, hall_ticket, reg)
-        sample = time.time() - sample
-        count += 1
-        # print(('#'*(progress(n, count))).ljust(100, '.'), f'[{progress(n, count)}%]', f'{(len(course_and_link)-count)*(round(sample/60, 2))} remaining time')
-        print(f'[{str(progress(n, count)).ljust(3," ")}%]', f'{round((len(course_and_link)-count)*sample, 2)} seconds remaining time')
-    if os.path.exists(f'{hall_ticket}_{reg}.html'):
-        print(f'File Generated successfully --> filename {hall_ticket}_{reg}.html')
-    else:
-        print('No result to print')
-
-
 def process_results_table(html_data, title, hall_ticket, reg):
     soup = BeautifulSoup(html_data, "html.parser")
     result = dict()
@@ -94,9 +80,24 @@ def progress(total, complete):
     return int((complete/total)*100)
 
 
+
+def open_links(course_and_link, hall_ticket, reg):
+    li = []
+
+    for title, url in course_and_link.items():
+        li.append((url, title, hall_ticket, reg))
+        #open_link(url, title, hall_ticket, reg)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        result = executor.map(open_link, li)
+        
+    if os.path.exists(f'{hall_ticket}_{reg}.html'):
+        print(f'File Generated successfully --> filename {hall_ticket}_{reg}.html')
+    else:
+        print('No result to print')
+
+
 if __name__ == "__main__":
     t1 = time.time()
-    input_data('16xxx0340', 'b.tech', 'R16', 2017, 2018)  # hall_ticket_number , course, regulation, from_year, to_year
-    print('Total time  Taken: ', round(time.time() - t1, 2), 'seconds')
-
-
+    input_data('16MH***343', 'b.tech', 'R16', 2017, 2022)  # hall_ticket_number , course, regulation, from_year, to_year
+    print('Total time Taken: ', round(time.time() - t1, 2), 'seconds')
